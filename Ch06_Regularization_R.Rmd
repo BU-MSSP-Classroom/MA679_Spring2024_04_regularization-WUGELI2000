@@ -1,6 +1,6 @@
 ---
 title: "Regularization"
-author: "Your Name"
+author: "Wuge Li"
 date: "2023-01-05"
 output: html_document
 bibliography: lecture.bib
@@ -90,12 +90,29 @@ Here are few rules:
 - You should use a resampling method that is most appropriate for choosing the hyper parameters.
 
 Your code:
-```{r,echo=TRUE}
-#
-#
+```{r,echo=TRUE,fig.width=6, fig.height=4}
+library(tidyverse)
+library(glmnet)
+new_2008 <- ames_raw_2008 %>% select(SalePrice, `Overall Qual`, Foundation, `Year Remod/Add`, `TotRms AbvGrd`, `Lot Area`, `Garage Cars`)
+new_2008 <- na.omit(new_2008)
+
+x = model.matrix(SalePrice ~ .-1, data = new_2008)
+y = new_2008$SalePrice
+lin_model <- lm(SalePrice ~ `Lot Area` + `Garage Cars`, data = new_2008)
+
+fit.ridge = glmnet(x, y, alpha = 0)
+cv.ridge = cv.glmnet(x, y, alpha = 0)
+plot(cv.ridge)
+coef(cv.ridge)
+
+fit.lasso = glmnet(x, y)
+cv.lasso = cv.glmnet(x, y)
+plot(cv.lasso)
+coef(cv.lasso)
 ```
 
 Your answer:
+For this one, I think Lasso is better.
 
 ~~~
 Please write your answer in full sentences.
@@ -162,8 +179,8 @@ In this exercise, we will generate simulated data, and will then use this data t
 
 Your code:
 ```{r,echo=TRUE}
-#
-#
+X <- rnorm(100)
+e <- rnorm(100, mean = 0, sd = 3)
 ```
 
 
@@ -171,8 +188,11 @@ Your code:
 
 Your code:
 ```{r,echo=TRUE}
-#
-#
+beta0 = 1.5
+beta1 = 1
+beta2 = 0.75
+beta3 = 0.5
+Y = beta0 + beta1 * X + beta2 * X^2 + beta3 * X^3
 ```
 
 
@@ -180,8 +200,17 @@ Your code:
 
 Your code:
 ```{r,echo=TRUE}
-#
-#
+library(leaps)
+sim_data <- data.frame(Y = Y, X = X)
+formula <- Y~X+I(X^2)+I(X^3)+I(X^4)+I(X^5)+I(X^6)+I(X^7)+I(X^8)+I(X^9)+I(X^10)
+
+reg.fit <- regsubsets(x = formula, data = sim_data)
+reg.summary <- summary(reg.fit)
+reg.summary
+names(reg.summary)
+reg.summary$rsq
+reg.summary$cp
+reg.summary$bic
 ```
 
 Your answer:
@@ -196,8 +225,9 @@ Please write your answer in full sentences.
 
 Your code:
 ```{r,echo=TRUE}
-#
-#
+new_simdata = data.frame(Y, X, X^2, X^3, X^4, X^5, X^6, X^7, X^8, X^9, X^10)
+regfit.fwd = regsubsets(Y ~ ., data = new_simdata, nvmax = 10, method = "forward")
+summary(regfit.fwd)
 ```
 
 Your answer:
@@ -211,9 +241,12 @@ Please write your answer in full sentences.
 (e) Now fit a lasso model to the simulated data, again using $X$, $X^{2},\dots, X^{10}$ as predictors. Use cross-validation to select the optimal value of $\lambda$. Create plots of the cross-validation error as a function of $\lambda$. Report the resulting coefficient estimates, and discuss the results obtained.
 
 Your code:
-```{r,echo=TRUE}
-#
-#
+```{r,echo=TRUE,fig.width=6, fig.height=4}
+X = model.matrix(Y ~ .-1, data = new_simdata)
+Y = new_simdata$Y
+fit.lasso = glmnet(X, Y)
+cv.lasso = cv.glmnet(X, Y)
+plot(cv.lasso)
 ```
 
 Your answer:
@@ -228,12 +261,13 @@ Please write your answer in full sentences.
 
 Your code:
 ```{r,echo=TRUE}
-#
-#
+beta7 = 2
+Y = beta0 + beta7 * X^7 + e
+
 ```
 
 Your answer:
-
+I am curious about this problem, if we have only x^7 one predictor, how could we do best subset selection and Lasso?
 ~~~
 Please write your answer in full sentences.
 
@@ -252,16 +286,23 @@ data(College,package = "ISLR2")
 
 Your code:
 ```{r,echo=TRUE}
-#
-#
+dim(College)
+set.seed(1)
+train = sample(seq(777), 520, replace = FALSE)
+trainset = College[train, ]
+testset = College[-train, ]
 ```
 
 (b) Fit a linear model using least squares on the training set, and report the test error obtained.
 
 Your code:
 ```{r,echo=TRUE}
-#
-#
+fit.lm = lm(Apps ~ ., data = trainset)
+summary(fit.lm)
+
+predictions <- predict(fit.lm, newdata = testset)
+test_error <- mean((testset$Apps - predictions)^2)
+test_error
 ```
 
 Your answer:
@@ -276,9 +317,13 @@ Please write your answer in full sentences.
 
 
 Your code:
-```{r,echo=TRUE}
-#
-#
+```{r,echo=TRUE,fig.width=6, fig.height=4}
+X = model.matrix(Apps ~ .-1, data = trainset)
+Y = trainset$Apps
+fit.ridge = glmnet(X, Y, alpha = 0)
+plot(fit.ridge, xvar = "lambda", label = TRUE)
+cv.ridge = cv.glmnet(X, Y, alpha = 0)
+plot(cv.ridge)
 ```
 
 Your answer:
@@ -293,8 +338,10 @@ Please write your answer in full sentences.
 
 Your code:
 ```{r,echo=TRUE}
-#
-#
+fit.lasso = glmnet(X, Y)
+plot(fit.lasso, xvar = "lambda", label = TRUE)
+cv.lasso = cv.glmnet(X, Y)
+plot(cv.lasso)
 ```
 
 Your answer:
@@ -310,8 +357,14 @@ Please write your answer in full sentences.
 
 Your code:
 ```{r,echo=TRUE}
-#
-#
+library(pls)
+library(caret)
+
+set.seed(1)
+pcr_cv <- pcr(Apps ~ ., data = trainset, validation = "CV")
+
+pcr_cv_sum <- summary(pcr_cv)
+optimal_M <- which.min(pcr_cv_sum$val[,"MSEP"])
 ```
 
 Your answer:
@@ -327,8 +380,11 @@ Please write your answer in full sentences.
 
 Your code:
 ```{r,echo=TRUE}
-#
-#
+set.seed(1)
+pls_cv <- plsr(Apps ~ ., data = trainset, validation = "CV")
+
+pls_cv_sum <- summary(pls_cv)
+optimal_M_pls <- which.min(pls_cv_sum$val[,"MSEP"])
 ```
 
 Your answer:
@@ -364,8 +420,16 @@ We have seen that as the number of features used in a model increases, the train
 
 Your code:
 ```{r,echo=TRUE}
-#
-#
+set.seed(1)
+n <- 1000
+p <- 20
+X <- matrix(rnorm(n * p), nrow = n, ncol = p)
+
+beta <- rnorm(p)
+beta[c(2, 5, 8, 11, 14, 17, 20)] <- 0
+epsilon <- rnorm(n, mean = 0, sd = 1)
+y <- X %*% beta + epsilon
+data.new <- data.frame(y, X)
 ```
 
 Your answer:
@@ -381,8 +445,9 @@ Please write your answer in full sentences.
 
 Your code:
 ```{r,echo=TRUE}
-#
-#
+train = sample(seq(1000), 900, replace = FALSE)
+trainset = data.new[train, ]
+testset = data.new[-train, ]
 ```
 
 Your answer:
@@ -396,9 +461,19 @@ Please write your answer in full sentences.
 (c) Perform best subset selection on the training set, and plot the training set MSE associated with the best model of each size.
 
 Your code:
-```{r,echo=TRUE}
-#
-#
+```{r,echo=TRUE,fig.width=6, fig.height=4}
+fit.fwd = regsubsets(y ~ ., data = trainset, nvmax = 19, method = "forward")
+val.errors = rep(NA, 19)
+x.test = model.matrix(y ~ ., data = testset) # notice the -index!
+for(i in 1:19){
+  coefi = coef(fit.fwd, id = i)
+  pred = x.test[, names(coefi)] %*% coefi
+  val.errors[i] = mean((data.new$y[-train] - pred) ^ 2)
+}
+plot(sqrt(val.errors), ylab = "Root MSE", pch = 19, type = "b")
+points(sqrt(fit.fwd$rss[-1]/900), col = "blue", pch = 19, type = "b")
+legend("topright", legend = c("traing", "Validation"), col = c("blue", "black"), 
+       pch = 19)
 ```
 
 Your answer:
@@ -412,9 +487,11 @@ Please write your answer in full sentences.
 (d) Plot the test set MSE associated with the best model of each size.
 
 Your code:
-```{r,echo=TRUE}
-#
-#
+```{r,echo=TRUE,fig.width=6, fig.height=4}
+model_sizes <- 1:length(val.errors)
+
+plot(model_sizes, val.errors, type = "b", xlab = "Model Size", ylab = "Test MSE",
+     main = "Test MSE for Different Model Sizes")
 ```
 
 Your answer:
@@ -436,7 +513,7 @@ Your answer:
 
 ~~~
 Please write your answer in full sentences.
-
+When model size = 12.
 
 ~~~
 
@@ -445,8 +522,7 @@ Please write your answer in full sentences.
 
 Your code:
 ```{r,echo=TRUE}
-#
-#
+
 ```
 
 Your answer:
@@ -487,8 +563,39 @@ data(Boston,package = "MASS")
 
 Your code:
 ```{r,echo=TRUE}
-#
-#
+best_subset_selection <- function(data) {
+  full <- regsubsets(crim ~ ., data = Boston, nvmax = NULL)
+  summary(full)
+}
+
+ridge_regression <- function(data) {
+  x <- model.matrix(crim ~ . - 1, data)
+  y <- data$crim
+  cv_out <- cv.glmnet(x, y, alpha = 0)
+  best_lambda <- cv_out$lambda.min
+  ridge_mod <- glmnet(x, y, alpha = 0, lambda = best_lambda)
+  return(list(cv = cv_out, model = ridge_mod))
+}
+
+
+lasso_regression <- function(data) {
+  x <- model.matrix(crim ~ . - 1, data)
+  y <- data$crim
+  cv_out <- cv.glmnet(x, y, alpha = 1)
+  best_lambda <- cv_out$lambda.min
+  lasso_mod <- glmnet(x, y, alpha = 1, lambda = best_lambda)
+  return(list(cv = cv_out, model = lasso_mod))
+}
+
+pcr_regression <- function(data) {
+  pcr_mod <- pcr(crim ~ ., data = Boston, scale = TRUE, validation = "CV")
+  summary(pcr_mod)
+}
+
+best_subset <- best_subset_selection(Boston)
+ridge <- ridge_regression(Boston)
+lasso <- lasso_regression(Boston)
+pcr <- pcr_regression(Boston)
 ```
 
 Your answer:
@@ -503,9 +610,33 @@ Please write your answer in full sentences.
 
 
 Your code:
-```{r,echo=TRUE}
-#
-#
+```{r,echo=TRUE,fig.width=6, fig.height=4}
+best_subset_model <- regsubsets(crim ~ ., data=Boston, nvmax=NULL, method="exhaustive")
+best_subset_summary <- summary(best_subset_model)
+
+best_model <- which.min(best_subset_summary$bic)
+
+x <- model.matrix(crim ~ ., Boston)[,-1]
+y <- Boston$crim
+
+cv_ridge <- cv.glmnet(x, y, alpha = 0, nfolds = 10)
+plot(cv_ridge)
+best_lambda_ridge <- cv_ridge$lambda.min
+
+cv_lasso <- cv.glmnet(x, y, alpha = 1, nfolds = 10)
+plot(cv_lasso)
+best_lambda_lasso <- cv_lasso$lambda.min
+
+pcr_model <- pcr(crim ~ ., data=Boston, scale=TRUE, validation="CV")
+validationplot(pcr_model, val.type="MSEP")
+
+mse_ridge <- mean(cv_ridge$cvm)
+mse_lasso <- mean(cv_lasso$cvm)
+mse_pcr <- mean(summary(pcr_model)$validation$MSEP[1,])
+
+mse_ridge
+mse_lasso
+mse_pcr
 ```
 
 Your answer:
